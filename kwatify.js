@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const playbar = document.getElementById('playbar');
     const currentTimeElement = document.getElementById("currentStart");
     const durationElement = document.getElementById("currentEnd");
+    const vol_icon = document.getElementById('vol_icon');
 
     const songs = [
         { name: 'Cut Me Off', artist: 'BoA', file: 'cut_me_off.mp3' },
@@ -96,197 +97,119 @@ document.addEventListener('DOMContentLoaded', () => {
 
     var audioPlayer = new Audio();
 
-    function loadHTMLContent_for_menu(counter) {
-        var htmlContent = '<li class="songitem" data-songfile="' + songs[counter].file + '"><span>' + (counter + 1) + '</span><img src="./images/all_songs/' + songs[counter].file.replace('.mp3', '.jpeg') + '"><h5 class="abcd">' + songs[counter].name + '<br><div class="subtitle">' + songs[counter].artist + '</div></h5><i class="bi playListplay bi-play-circle-fill" id="1"></i></li>';
+    songs.forEach((song, index) => {
+        const li = document.createElement('li');
+        li.classList.add('songitem');
+        li.setAttribute('data-songfile', song.file);
+        li.innerHTML = `<span>${index + 1}</span>
+            <img src="./images/all_songs/${song.file.replace('.mp3', '.jpeg')}">
+            <h5 class="abcd">${song.name}<br><div class="subtitle">${song.artist}</div></h5>
+            <i class="bi playListplay bi-play-circle-fill"></i>`;
+        document.getElementById('menu_songs').appendChild(li);
+    });
 
-        var targetUl = document.getElementById('menu_songs');
-        targetUl.innerHTML += htmlContent;
-    }
+    // Load Popular Songs
+    popsongs.forEach((song, index) => {
+        const li = document.createElement('li');
+        li.classList.add('songitem');
+        li.setAttribute('data-songfile', song.file);
+        li.innerHTML = `<div class="img_play">
+            <img src="./images/pop_songs/${song.file.replace('.mp3', '.jpeg')}">
+            <i class="bi playListplay bi-play-circle-fill"></i>
+        </div>
+        <h5>${song.name}<br><div class="subtitle">${song.artist}</div></h5>`;
+        document.getElementById('pop_songs').appendChild(li);
+    });
 
-    for (var i = 0; i < songs.length; i++) {
-        loadHTMLContent_for_menu(i);
-    }
+    // Load Popular Artists
+    pop_artists.forEach(artist => {
+        const li = document.createElement('li');
+        li.innerHTML = `<img src="images/artists/${artist.image}" data-artist-name="${artist.forsearch}">`;
+        document.getElementById('popartists').appendChild(li);
+    });
 
-    function loadHTMLContent_for_pop(counter) {
-        var htmlContent = '<li class="songitem" data-songfile="' + popsongs[counter].file + '"><div class="img_play"><img src="./images/pop_songs/' + popsongs[counter].file.replace('.mp3', '.jpeg') + '"><i class="bi playListplay bi-play-circle-fill" id="13"></i></div><h5>' + popsongs[counter].name + '<br><div class="subtitle">' + popsongs[counter].artist + '</div></h5></li>';
-
-        var targetUl = document.getElementById('pop_songs');
-        targetUl.innerHTML += htmlContent;
-    }
-
-    for (var i = 0; i < popsongs.length; i++) {
-        loadHTMLContent_for_pop(i);
-    }
-
-    function loadHTMLContent_for_artist(counter) {
-        var htmlContent = '<li><img src="images/artists/' + pop_artists[counter].image + '" data-artist-name="' + pop_artists[counter].forsearch + '"></li>';
-    
-        var targetUl = document.getElementById('popartists');
-        targetUl.innerHTML += htmlContent;
-    }
-    
-    for (var i = 0; i < pop_artists.length; i++) {
-        loadHTMLContent_for_artist(i);
-    }
-
-    var songItems = document.querySelectorAll('.songitem');
-    songItems.forEach(function (songItem) {
-        songItem.addEventListener('click', function () {
-            var songFile = this.getAttribute('data-songfile');
+    // Song Click Event
+    document.querySelectorAll('.songitem').forEach(songItem => {
+        songItem.addEventListener('click', () => {
             playSong(songItem);
         });
     });
 
-    var artistImages = document.querySelectorAll('#popartists li img');
-artistImages.forEach(function (image) {
-    image.addEventListener('click', function () {
-        var artistName = this.getAttribute('data-artist-name');
-        openGoogleSearch(artistName);
-    });
-});
+    function playSong(songItem) {
+        const songFile = songItem.getAttribute('data-songfile');
+        const songData = songs.find(s => s.file === songFile);
 
-function openGoogleSearch(artistName) {
-    var searchQuery = 'https://www.google.com/search?q=' + artistName;
-    window.open(searchQuery, '_blank');
-}
-
-    function playSong(song) {
-        audioPlayer.src = `songs/${song.getAttribute('data-songfile')}`;
+        audioPlayer.src = `./songs/${songData.file}`;
         audioPlayer.play();
-        masterPlay.classList.toggle('bi-play-fill', false);
-        masterPlay.classList.toggle('bi-pause-fill', true);
-        updateNowPlayingInfo(song.getAttribute('data-songfile'));
-    
-        audioPlayer.addEventListener('ended', function () {
-            updatePlaybar(0, audioPlayer.duration);
-            updateNowPlayingInfo(songs[(songs.indexOf(song) + 1) % songs.length]);
-        });
 
-        // Update playbar and time markers during playback
-        audioPlayer.addEventListener('timeupdate', function () {
+        masterPlay.classList.add('bi-pause-fill');
+        masterPlay.classList.remove('bi-play-fill');
+        wave.classList.add('active2');
+
+        currentCover.src = `./images/all_songs/${songData.file.replace('.mp3', '.jpeg')}`;
+        songNameElement.innerHTML = `${songData.name}<div class="subtitle">${songData.artist}</div>`;
+
+        updatePlaybar(0, audioPlayer.duration);
+
+        audioPlayer.addEventListener('timeupdate', () => {
             updatePlaybar(audioPlayer.currentTime, audioPlayer.duration);
         });
+
+        audioPlayer.addEventListener('ended', () => {
+            const currentIndex = songs.findIndex(s => s.file === songData.file);
+            const nextIndex = (currentIndex + 1) % songs.length;
+            const nextSongItem = document.querySelector(`[data-songfile="${songs[nextIndex].file}"]`);
+            playSong(nextSongItem);
+        });
     }
 
-    function getSongByFile(file) {
-        const foundSong = songs.find(song => song.file === file);
-    
-        if (foundSong) {
-            return foundSong.name
+    masterPlay.addEventListener('click', () => {
+        if(audioPlayer.paused || audioPlayer.currentTime <= 0){
+            audioPlayer.play();
+            masterPlay.classList.add('bi-pause-fill');
+            masterPlay.classList.remove('bi-play-fill');
+            wave.classList.add('active2');
         } else {
-            return null;
-    }}
-
-    function getArtistByFile(file) {
-        const foundSong = songs.find(song => song.file === file);
-    
-        if (foundSong) {
-            return foundSong.artist
-        } else {
-            return null;
-    }}
-    
-    function updateNowPlayingInfo(file) {
-        currentCover.src = `images/all_songs/${file.replace('.mp3', '.jpeg')}`;
-        songNameElement.innerHTML = getSongByFile(file)+'<div class="subtitle" id="master_play_artist">'+getArtistByFile(file)+'</div>';
-    }
-
-    masterPlay.addEventListener('click', togglePlay);
-
-document.addEventListener('keydown', (event) => {
-    if (event.code === 'Space') {
-        togglePlay();
-    }
-});
-
-function togglePlay() {
-    if (audioPlayer.paused || audioPlayer.currentTime <= 0) {
-        audioPlayer.play();
-        wave.classList.add('active1');
-        masterPlay.classList.toggle('bi-play-fill', false);
-        masterPlay.classList.toggle('bi-pause-fill', true);
-    } else {
-        audioPlayer.pause();
-        wave.classList.remove('active1');
-        masterPlay.classList.toggle('bi-play-fill', true);
-        masterPlay.classList.toggle('bi-pause-fill', false);
-    }
-}
-
-    pop_song_right.addEventListener('click', () => {
-        pop_song.scrollLeft += 330;
-    });
-
-    pop_song_left.addEventListener('click', () => {
-        pop_song.scrollLeft -= 330;
-    });
-
-    pop_art_right.addEventListener('click', () => {
-        Artists_bx.scrollLeft += 330;
-    });
-
-    pop_art_left.addEventListener('click', () => {
-        Artists_bx.scrollLeft -= 330;
-    });
-
-    let isMuted = false;
-
-    volumeControl.addEventListener("input", function() {
-        audioPlayer.volume = this.value;
-    });
-
-    vol_icon.addEventListener('click', toggleMute);
-    document.addEventListener('keydown', function (e) {
-        if (e.key === 'm' || e.key === 'M') {
-            toggleMute();
+            audioPlayer.pause();
+            masterPlay.classList.add('bi-play-fill');
+            masterPlay.classList.remove('bi-pause-fill');
+            wave.classList.remove('active2');
         }
     });
 
-    function toggleMute() {
-        if (isMuted) {
-            audioPlayer.volume = 0.5;
-            volumeControl.value = 0.5;
+    function updatePlaybar(current, duration){
+        let progress = (current / duration) * 100;
+        playbar.style.width = progress + '%';
+
+        // Update time text
+        let curMinutes = Math.floor(current / 60);
+        let curSeconds = Math.floor(current % 60);
+        let durMinutes = Math.floor(duration / 60);
+        let durSeconds = Math.floor(duration % 60);
+
+        currentTimeElement.textContent = `${curMinutes}:${curSeconds < 10 ? '0'+curSeconds : curSeconds}`;
+        durationElement.textContent = `${durMinutes}:${durSeconds < 10 ? '0'+durSeconds : durSeconds}`;
+    }
+
+    // Volume Control
+    volumeControl.addEventListener("input", () => {
+        audioPlayer.volume = volumeControl.value;
+        if(volumeControl.value == 0){
+            vol_icon.className = "bi bi-volume-mute-fill";
+        } else if(volumeControl.value <= 0.5){
+            vol_icon.className = "bi bi-volume-down-fill";
         } else {
-            audioPlayer.volume = 0;
-            volumeControl.value = 0;
+            vol_icon.className = "bi bi-volume-up-fill";
         }
-        isMuted = !isMuted;
-        updateVolumeIcon();
-    };
-    
-    function updateVolumeIcon() {
-        vol_icon.classList.toggle('mute', isMuted);
-    };
+    });
 
-    updateVolumeIcon();
-
-    playbar.addEventListener("click", function(e) {
+    // Playbar click to seek
+    document.getElementById("playbar-container").addEventListener("click", function(e) {
         const clickPosition = e.clientX - this.getBoundingClientRect().left;
         const percentage = (clickPosition / this.offsetWidth);
         const newTime = percentage * audioPlayer.duration;
-        
+
         audioPlayer.currentTime = newTime;
         updatePlaybar(newTime, audioPlayer.duration);
     });
-
-    function updatePlaybar(currentTime, duration) {
-        const percentage = (currentTime / duration) * 100;
-        playbar.style.width = `${percentage}%`;
-    
-        // Update time markers
-        const currentTimeMinutes = Math.floor(currentTime / 60);
-        const currentTimeSeconds = Math.floor(currentTime % 60);
-        const durationMinutes = Math.floor(duration / 60);
-        const durationSeconds = Math.floor(duration % 60);
-    
-        // Check for valid values before updating the time markers
-        if (!isNaN(currentTimeMinutes) && !isNaN(currentTimeSeconds) && !isNaN(durationMinutes) && !isNaN(durationSeconds)) {
-            currentTimeElement.textContent = `${formatTime(currentTimeMinutes)}:${formatTime(currentTimeSeconds)}`;
-            durationElement.textContent = `${formatTime(durationMinutes)}:${formatTime(durationSeconds)}`;
-        }
-    }
-
-    function formatTime(value) {
-        return value < 10 ? `0${value}` : `${value}`;
-    }
 });
