@@ -95,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ]
 
     var audioPlayer = new Audio();
+    let currentIndex = 0;
 
     function loadHTMLContent_for_menu(counter) {
         var htmlContent = '<li class="songitem" data-songfile="' + songs[counter].file + '"><span>' + (counter + 1) + '</span><img src="./images/all_songs/' + songs[counter].file.replace('.mp3', '.jpeg') + '"><h5 class="abcd">' + songs[counter].name + '<br><div class="subtitle">' + songs[counter].artist + '</div></h5><i class="bi playListplay bi-play-circle-fill" id="1"></i></li>';
@@ -151,22 +152,29 @@ function openGoogleSearch(artistName) {
 }
 
     function playSong(song) {
-        audioPlayer.src = `songs/${song.getAttribute('data-songfile')}`;
-        audioPlayer.play();
-        masterPlay.classList.toggle('bi-play-fill', false);
-        masterPlay.classList.toggle('bi-pause-fill', true);
-        updateNowPlayingInfo(song.getAttribute('data-songfile'));
-    
-        audioPlayer.addEventListener('ended', function () {
-            updatePlaybar(0, audioPlayer.duration);
-            updateNowPlayingInfo(songs[(songs.indexOf(song) + 1) % songs.length]);
-        });
+        const songFile = song.getAttribute('data-songfile');
 
-        // Update playbar and time markers during playback
-        audioPlayer.addEventListener('timeupdate', function () {
+        // Update currentIndex
+        currentIndex = songs.findIndex(s => s.file === songFile);
+
+        audioPlayer.src = `songs/${songFile}`;
+        audioPlayer.play();
+        wave.classList.add('active1');
+        masterPlay.classList.remove('bi-play-fill');
+        masterPlay.classList.add('bi-pause-fill');
+        updateNowPlayingInfo(songFile);
+
+        // Remove old ended listener and add new
+        audioPlayer.onended = () => {
+            nextSong();
+        };
+
+        // Update playbar during playback
+        audioPlayer.ontimeupdate = () => {
             updatePlaybar(audioPlayer.currentTime, audioPlayer.duration);
-        });
+        };
     }
+
 
     function getSongByFile(file) {
         const foundSong = songs.find(song => song.file === file);
@@ -193,25 +201,37 @@ function openGoogleSearch(artistName) {
 
     masterPlay.addEventListener('click', togglePlay);
 
-document.addEventListener('keydown', (event) => {
-    if (event.code === 'Space') {
-        togglePlay();
-    }
-});
-
 function togglePlay() {
-    if (audioPlayer.paused || audioPlayer.currentTime <= 0) {
+    if (audioPlayer.paused) {
         audioPlayer.play();
         wave.classList.add('active1');
-        masterPlay.classList.toggle('bi-play-fill', false);
-        masterPlay.classList.toggle('bi-pause-fill', true);
+        masterPlay.classList.remove('bi-play-fill');
+        masterPlay.classList.add('bi-pause-fill');
     } else {
         audioPlayer.pause();
         wave.classList.remove('active1');
-        masterPlay.classList.toggle('bi-play-fill', true);
-        masterPlay.classList.toggle('bi-pause-fill', false);
+        masterPlay.classList.remove('bi-pause-fill');
+        masterPlay.classList.add('bi-play-fill');
     }
 }
+
+    function playSongByIndex(index) {
+        if (index < 0) index = songs.length - 1;
+        if (index >= songs.length) index = 0;
+        currentIndex = index;
+
+        const songItem = document.querySelector(`.songitem[data-songfile="${songs[index].file}"]`);
+        if (songItem) playSong(songItem);
+    }
+
+    function nextSong() {
+        playSongByIndex(currentIndex + 1);
+    }
+
+    function prevSong() {
+        playSongByIndex(currentIndex - 1);
+    }
+
 
     pop_song_right.addEventListener('click', () => {
         pop_song.scrollLeft += 330;
@@ -289,4 +309,56 @@ function togglePlay() {
     function formatTime(value) {
         return value < 10 ? `0${value}` : `${value}`;
     }
+
+    function changeVolume(amount) {
+        let newVolume = Math.min(Math.max(audioPlayer.volume + amount, 0), 1);
+        audioPlayer.volume = newVolume;
+        volumeControl.value = newVolume;
+    }
+
+    document.addEventListener('keydown', function (event) {
+        const activeElement = document.activeElement;
+
+        switch (event.code) {
+            case 'Space': // Play/Pause
+                event.preventDefault();
+                togglePlay();
+                break;
+
+            case 'ArrowRight': // Next song
+                if (!activeElement.matches('input, textarea')) nextSong();
+                break;
+
+            case 'ArrowLeft': // Previous song
+                if (!activeElement.matches('input, textarea')) prevSong();
+                break;
+
+            case 'ArrowUp': // Increase volume
+                if (activeElement === volumeControl) {
+                    event.preventDefault();
+                    changeVolume(0.1);
+                } else {
+                    // Scroll song list up (if focused)
+                    // Example: scroll the menu_songs container
+                    const menuSongs = document.getElementById('menu_songs');
+                    if (menuSongs) menuSongs.scrollTop -= 30;
+                }
+                break;
+
+            case 'ArrowDown': // Decrease volume
+                if (activeElement === volumeControl) {
+                    event.preventDefault();
+                    changeVolume(-0.1);
+                } else {
+                    // Scroll song list down (if focused)
+                    const menuSongs = document.getElementById('menu_songs');
+                    if (menuSongs) menuSongs.scrollTop += 30;
+                }
+                break;
+
+            case 'KeyM': // Mute
+                toggleMute();
+                break;
+        }
+    });
 });
